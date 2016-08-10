@@ -1,0 +1,91 @@
+﻿#!/usr/bin/env node
+var debug = require('debug')('icomChatsNJS');
+var app = require('../app');
+var sql = require('mssql');
+
+
+app.set('port', process.env.PORT || 3000);
+
+
+
+var server = app.listen(app.get('port'), function() {
+    debug('Express server listening on port ' + server.address().port);
+});
+
+var io = require('socket.io')(server);
+
+io.on('connection', function(socket){
+
+	socket.on("newMessage", function(data){
+		
+		var json = JSON.parse(data);
+		var hoy = new Date();
+		var mes = hoy.getMonth() + 1;
+		var strfecha = hoy.getFullYear() + "-"+ mes + "-" + hoy.getDate();
+		var strhora = hoy.getHours() + ":" + hoy.getMinutes() + ":" + hoy.getSeconds();
+		json.fecha = strfecha;
+		json.hora = strhora;
+		var strquery = "insert into chat_general (idusuario, fecha, hora, comentario) values ("+ json.idusuario +",'"+ strfecha +"','"+ strhora +"','"+ json.mensaje +"')";
+
+		sql.connect("mssql://icom_user:icomuser123@localhost/icom").then(function(){
+			new sql.Request().query(strquery).then(function(recordset){
+			}).catch(function(err){
+				console.log("error al query "+ err);
+			});
+		}).catch(function(err){
+			console.log("error al conectar "+ err);
+		});
+						
+		console.log('usuario: ' + json.nombre + ' dice: ' + json.mensaje);
+						
+		io.emit("listenMessage", json);
+	});
+
+	socket.on("meteUsuarioaGrupo", function(data){
+		var json = JSON.parse(data);
+		var idusuario = json.idusuario;
+		var idevento = json.idevento;
+
+		socket.join(idevento);
+		console.log('El usuario ' + idusuario + ' se ha unido al grupo del evento '  + idevento);
+	});
+
+	socket.on("sacaUsuariodeGrupo", function(data){
+	    var json = JSON.parse(data);
+		var idusuario = json.idusuario;
+		var idevento = json.idevento;
+
+		socket.leave(idevento);
+		console.log('El usuario ' + idusuario + ' se ha salido del grupo del evento '  + idevento);
+	});
+
+	socket.on("newMessageEvento", function(data){
+		var json = JSON.parse(data);
+		
+		var hoy = new Date();		
+		var mes = hoy.getMonth() + 1;
+		var strfecha = hoy.getFullYear() + "-"+ mes + "-" + hoy.getDate();
+		var strhora = hoy.getHours() + ":" + hoy.getMinutes() + ":" + hoy.getSeconds();
+		json.fecha = strfecha;
+		json.hora = strhora;
+
+		var idusuario = json.idusuario;
+		var idevento = json.idevento;
+
+		var strquery = "insert into chat_eventos (idevento, idusuario, fecha, hora, comentario) values (" + json.idevento + "," + json.idusuario +",'"+ strfecha +"','"+ strhora +"','"+ json.mensaje +"')";
+
+		sql.connect("mssql://icom_user:icomuser123@localhost/icom").then(function(){
+			new sql.Request().query(strquery).then(function(recordset){
+			}).catch(function(err){
+				console.log("error al query "+ err);
+			});
+		}).catch(function(err){
+			console.log("error al conectar "+ err);
+		});
+
+		console.log('usuario: ' + json.nombre + ' dice: ' + json.mensaje + ' en grupo de evento ' + idevento);
+		io.to(idevento).emit("listenMessageEvento", json);
+		 
+	});
+
+});
