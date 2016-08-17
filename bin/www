@@ -25,16 +25,21 @@ io.on('connection', function(socket){
 		var strhora = hoy.getHours() + ":" + hoy.getMinutes() + ":" + hoy.getSeconds();
 		json.fecha = strfecha;
 		json.hora = strhora;
-		var strquery = "insert into chat_general (idusuario, fecha, hora, comentario) values ("+ json.idusuario +",'"+ strfecha +"','"+ strhora +"','"+ json.mensaje +"')";
 
-		sql.connect("mssql://icom_user:icomuser123@localhost/icom").then(function(){
-			new sql.Request().query(strquery).then(function(recordset){
+		if(json.filename == ''){							
+			console.log('Mensaje SIN archivo');
+			var strquery = "insert into chat_general (idusuario, fecha, hora, comentario) values ("+ json.idusuario +",'"+ strfecha +"','"+ strhora +"','"+ json.mensaje +"')";
+			sql.connect("mssql://icom_user:icomuser123@localhost/icom").then(function(){
+				new sql.Request().query(strquery).then(function(recordset){
+				}).catch(function(err){
+					console.log("error al query "+ err);
+				});
 			}).catch(function(err){
-				console.log("error al query "+ err);
+				console.log("error al conectar "+ err);
 			});
-		}).catch(function(err){
-			console.log("error al conectar "+ err);
-		});
+		}else{
+			console.log('Mensaje con archivo ' + json.filename);
+		}
 						
 		console.log('usuario: ' + json.nombre + ' dice: ' + json.mensaje);
 						
